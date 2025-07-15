@@ -20,6 +20,8 @@ yt_opts = {
     'quiet': True,
     'default_search': 'ytsearch',
     'noplaylist': True,
+    'cachedir': False,          # Cache deaktivieren für schnellere Abfragen
+    'extract_flat': True,       # Nur Metadaten laden (schneller)
 }
 
 ydl = yt_dlp.YoutubeDL(yt_opts)
@@ -69,7 +71,10 @@ async def search_and_play(ctx, query: str):
     url = info['url']
     title = info['title']
 
-    source = discord.FFmpegPCMAudio(url, options='-vn')
+    # FFmpeg Optionen mit reconnect für schnelleres und stabileres Streaming
+    ffmpeg_options = '-vn -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'
+
+    source = discord.FFmpegPCMAudio(url, options=ffmpeg_options)
 
     def after_playing(e):
         if e:
