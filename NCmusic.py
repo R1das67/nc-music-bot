@@ -50,7 +50,7 @@ async def search_and_play(ctx, query: str, playlist=None, index=0):
     global looping
 
     if not ctx.user.voice:
-        await ctx.response.send_message("❌ Du musst in einem Sprachkanal sein!", ephemeral=True)
+        await ctx.followup.send("❌ Du musst in einem Sprachkanal sein!", ephemeral=True)
         return
 
     channel = ctx.user.voice.channel
@@ -62,7 +62,7 @@ async def search_and_play(ctx, query: str, playlist=None, index=0):
 
     if playlist is None:
         # Erster Suchlauf - Playlist mit mehreren Ergebnissen laden
-        await ctx.response.send_message(f"🔍 Suche nach: `{query}`...", ephemeral=True)
+        await ctx.followup.send(f"🔍 Suche nach: `{query}`...", ephemeral=True)
         try:
             info = ydl.extract_info(f"ytsearch5:{query}", download=False)
         except Exception as e:
@@ -130,6 +130,7 @@ async def on_ready():
 @client.tree.command(name="play", description="Spielt Musik ab.")
 @app_commands.describe(song="Name des Songs (optional mit Künstler)")
 async def play(interaction: discord.Interaction, song: str):
+    await interaction.response.defer(ephemeral=True)  # Interaktion bestätigen, ohne Nachricht
     await search_and_play(interaction, song)
 
 # ✅ Start Render-Webserver für "keep-alive"
