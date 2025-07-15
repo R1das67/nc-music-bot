@@ -18,10 +18,8 @@ looping = False  # Globaler Loop-Modus
 yt_opts = {
     'format': 'bestaudio/best',
     'quiet': True,
-    'default_search': 'ytsearch',
+    'default_search': 'ytsearch5',  # Suche mit 5 Ergebnissen für Playlist-Funktion
     'noplaylist': True,
-    'cachedir': False,          # Cache deaktivieren für schnellere Abfragen
-    'extract_flat': True,       # Nur Metadaten laden (schneller)
 }
 
 ydl = yt_dlp.YoutubeDL(yt_opts)
@@ -48,7 +46,7 @@ class MusicView(discord.ui.View):
         else:
             await interaction.response.send_message("➡️ Wiederholung deaktiviert.", ephemeral=True)
 
-async def search_and_play(ctx, query: str):
+async def search_and_play(ctx, query: str, playlist=None, index=0):
     global looping
 
     if not ctx.user.voice:
@@ -62,31 +60,63 @@ async def search_and_play(ctx, query: str):
 
     voice_client = ctx.guild.voice_client
 
-    await ctx.response.send_message(f"🔍 Suche nach: `{query}`...", ephemeral=True)
+    if playlist is None:
+        # Erster Suchlauf - Playlist mit mehreren Ergebnissen laden
+        await ctx.response.send_message(f"🔍 Suche nach: `{query}`...", ephemeral=True)
+        try:
+            info = ydl.extract_info(f"ytsearch5:{query}", download=False)
+        except Exception as e:
+            await ctx.followup.send(f"❌ Fehler bei der Suche: {e}", ephemeral=True)
+            return
+        if 'entries' not in info or len(info['entries']) == 0:
+            await ctx.followup.send("❌ Keine Ergebnisse gefunden.", ephemeral=True)
+            return
+        playlist = info['entries']
+        index = 0
 
-    info = ydl.extract_info(query, download=False)
-    if 'entries' in info:
-        info = info['entries'][0]
+    if index >= len(playlist):
+        await ctx.followup.send("🎵 Playlist zu Ende.", ephemeral=True)
+        await voice_client.disconnect()
+        return
 
-    url = info['url']
-    title = info['title']
+    info = playlist[index]
 
-    # FFmpeg Optionen mit reconnect für schnelleres und stabileres Streaming
-    ffmpeg_options = '-vn -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'
+    # Prüfen, ob ein passendes Audioformat vorhanden ist
+    formats = info.get('formats', [])
+    audio_format = next((f for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none'), None)
 
-    source = discord.FFmpegPCMAudio(url, options=ffmpeg_options)
+    if audio_format:
+        url = audio_format['url']
+    else:
+        url = info.get('url')
+        if not url:
+            await ctx.followup.send("❌ Kein Audioformat gefunden.", ephemeral=True)
+            return
 
-    def after_playing(e):
-        if e:
-            print(f"Error: {e}")
-        elif looping:
-            asyncio.run_coroutine_threadsafe(search_and_play(ctx, query), client.loop)
+    title = info.get('title', 'Unbekannt')
+
+    source = discord.FFmpegPCMAudio(url, options='-vn')
+
+    async def after_playing_callback(error):
+        if error:
+            print(f"Error: {error}")
+
+        if looping:
+            # Wiederhole aktuellen Song
+            await search_and_play(ctx, query, playlist, index)
+        else:
+            # Spiele nächsten Song
+            await search_and_play(ctx, query, playlist, index + 1)
 
     voice_client.stop()
-    voice_client.play(source, after=after_playing)
+    voice_client.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(after_playing_callback(e), client.loop))
 
-    view = MusicView(ctx, source, voice_client)
-    await ctx.followup.send(f"🎶 Jetzt läuft: **{title}**", view=view)
+    if index == 0:
+        view = MusicView(ctx, source, voice_client)
+        await ctx.followup.send(f"🎶 Jetzt läuft: **{title}**", view=view)
+    else:
+        # Optional: Nachrichten für weitere Songs unterdrücken oder senden
+        pass
 
 @client.event
 async def on_ready():
