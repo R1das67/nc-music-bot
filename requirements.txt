@@ -1,5 +1,5 @@
 discord.py
-yt_dlp
+yt-dlp>=2025.06.30
 ffmpeg-python
 Flask
 PyNaCl
