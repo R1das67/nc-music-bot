@@ -5,6 +5,9 @@ import yt_dlp
 import asyncio
 import os
 
+# ✅ Render-Webserver einbinden
+from keep_alive import keep_alive
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
@@ -94,5 +97,9 @@ async def on_ready():
 async def play(interaction: discord.Interaction, song: str):
     await search_and_play(interaction, song)
 
+# ✅ Start Render-Webserver für "keep-alive"
+keep_alive()
+
+# ✅ Starte den Discord-Bot
 TOKEN = os.getenv("DISCORD_TOKEN")
 client.run(TOKEN)
