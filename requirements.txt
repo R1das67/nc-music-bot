@@ -1,4 +1,4 @@
 discord.py
-yt-dlp==2025.07.15
+yt-dlp==2024.7.15
 ffmpeg-python
 Flask
