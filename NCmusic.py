@@ -20,6 +20,7 @@ yt_opts = {
     'quiet': True,
     'default_search': 'ytsearch5',  # Suche mit 5 Ergebnissen für Playlist-Funktion
     'noplaylist': True,
+    'cookiefile': 'cookies.txt',  # <--- Hier die Cookies-Datei einbinden
 }
 
 ydl = yt_dlp.YoutubeDL(yt_opts)
